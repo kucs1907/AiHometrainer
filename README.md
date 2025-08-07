@@ -14,3 +14,12 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+
+###
+프로젝트 받으시면
+ALT + F12 키 눌러서 터미널 여시고
+
+flutter pub get
+
+입력하시면 됩니다.
