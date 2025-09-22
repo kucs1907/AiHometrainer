@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "840886097993",
+    "project_id": "aihometrainer",
+    "storage_bucket": "aihometrainer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:840886097993:android:c8db3b40b04e1272140798",
+        "android_client_info": {
+          "package_name": "com.example.aihometrainer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhdwTQgpjzj-s4FWVFFDwIpj143aSnPAc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
