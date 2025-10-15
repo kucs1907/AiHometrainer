@@ -1,9 +1,11 @@
+# backend/models/tables.py
+
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime,
     ForeignKey, func
 )
 from sqlalchemy.orm import relationship
-from database.connection import Base
+from utils.db import Base
 
 class User(Base):
     __tablename__ = "users"

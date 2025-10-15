@@ -1,8 +1,9 @@
+# backend/routers/websocket_router.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+from datetime import datetime
 from database.connection import SessionLocal
-from models.tables import ExerciseLog
-# from utils.model_loader import load_model, predict  # 나중에 실제 모델 호출용
+from models.exercise import ExerciseSession
 
 router = APIRouter(tags=["websocket"])
 
@@ -16,34 +17,31 @@ def get_db():
 @router.websocket("/ws/exercise")
 async def websocket_exercise(websocket: WebSocket):
     await websocket.accept()
-    # DB 세션 가져오기
     db: Session = next(get_db())
     try:
         while True:
             data = await websocket.receive_json()
-            # 1) AI 추론 결과 (더미)
-            # real_score, real_count, real_duration = predict(data["image"])
+
+            # 더미 추론 결과
             real_score, real_count, real_duration = 0.85, 15, 12.3
 
-            # 2) DB에 저장
-            log = ExerciseLog(
-                user_id=data["user_id"],
-                exercise_type_id=data.get("exercise_type_id", 0),
-                count=real_count,
-                duration=real_duration,
-                score=real_score
+            sess = ExerciseSession(
+                user_id=str(data["user_id"]),
+                exercise=f"type_{data.get('exercise_type_id', 0)}",
+                reps=real_count,
+                correct_ratio=real_score,
+                # start/end는 이벤트 훅이 처리 (KST)
             )
-            db.add(log)
+            db.add(sess)
             db.commit()
-            db.refresh(log)
+            db.refresh(sess)
 
-            # 3) 클라이언트로 응답
             await websocket.send_json({
                 "score": real_score,
                 "count": real_count,
                 "duration": real_duration,
-                "log_id": log.id,
-                "timestamp": log.timestamp.isoformat(),
+                "log_id": sess.id,  # 프론트 호환 키
+                "timestamp": (sess.start_time).isoformat(),
             })
     except WebSocketDisconnect:
         pass

@@ -1,4 +1,4 @@
-# merged3/backend/schemas/exercise.py
+# backend/schemas/exercise.py
 
 from pydantic import BaseModel
 from datetime import datetime
@@ -14,6 +14,7 @@ class ExerciseLogIn(BaseModel):
 class ExerciseLogOut(ExerciseLogIn):
     id: int
     timestamp: datetime
+    exercise: Optional[str] = None
 
     class Config:
         orm_mode = True

@@ -1,4 +1,4 @@
-cd C:\Users\jinyh\Desktop\merged66\backend
+cd C:\Users\jinyh\Desktop\merged71\backend
 .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload
@@ -10,35 +10,11 @@ cd "C:\Users\jinyh\Desktop\capstone\backend"OneDrive\
 $Env:FIREBASE_CREDENTIALS = "C:\Users\jinyh\OneDrive\Desktop\capstone\backend\credentials\serviceAccountKey.json"
 uvicorn main:app --reload
 
-cd C:\Users\jinyh\Desktop\merged69\frontend
+
+main, exercise_service,  live_feedback_screen
+cd C:\Users\jinyh\Desktop\merged71\frontend
 flutter clean
 flutter pub get 
 flutter run
 flutter run -d chrome --web-port=8080
 flutter run -d R3CW50GV55Y
-
-
-from database.connection import SessionLocal
-from utils.notification_utils import get_inactive_users
-db = SessionLocal()
-print(get_inactive_users(db, days=3))
-db.close()
-
-
-from database.connection import SessionLocal
-from models.tables import User
-from utils.notification_utils import get_inactive_users
-from utils.send_push import send_push
-
-db = SessionLocal()
-# ① 비활동 사용자 조회
-users = get_inactive_users(db, days=3)
-# ② 실제 푸시 전송 & 반환 ID 출력
-for u in users:
-    token = db.query(User.push_token).filter(User.id == u.id).scalar()
-    msg_id = send_push(token,
-                      title="테스트 알림",
-                     body="알림이 제대로 도착하는지 확인해 주세요",
-                      data={"test":"true"})
-    print(f"▶ user_id={u.id} sent message_id={msg_id}")
-db.close()
