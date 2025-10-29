@@ -1,25 +1,183 @@
-# aihometrainer
+# 🏋️‍♂️ AI Hometrainer
 
-AI홈트레이너 프로젝트입니다.
+**AI Hometrainer**는 카메라 기반 자세 인식과 카카오 로그인, 실시간 운동 피드백,  
+운동 기록 관리(히트맵, 바 차트) 및 알림 기능까지 제공하는 **개인 맞춤형 홈트레이닝 앱**입니다.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Flutter로 개발되었으며, Android 기기에서 동작합니다.
 
 
-###
-프로젝트 받으시면
-ALT + F12 키 눌러서 터미널 여시고
+---
 
-flutter pub get
+개발자 환경 실행
 
-입력하시면 됩니다.
+첨부된 start.txt 가이드라인 확인
+
+
+📌 Git & IDE 설정 관련 주의사항
+
+.idea/misc.xml 은 Android Studio/IntelliJ에서 자동 생성되는 개인 설정 파일입니다.
+Git에서 추적되면 팀마다 설정 충돌이 발생할 수 있으니 아래 내용을 꼭 따라주세요:
+
+✅ 1. Git에서 추적되지 않도록 .gitignore에 추가
+# IDE 개인 설정 무시
+.idea/
+
+✅ 2. 이미 추적 중이라면 아래 명령어로 제거
+터미널 실행 후
+
+git rm --cached .idea/misc.xml
+git commit -m "Stop tracking IDE-specific settings"
+
+
+
+
+## 📱 주요 기능
+
+### 🔑 로그인
+- 카카오 SDK 연동 (카카오톡 / 카카오 계정 로그인)
+- 로그인 실패 시 오류 메시지 처리 ("로그인 실패, 다시 시도해주세요")
+
+### 🎥 실시간 운동 인식
+- **카메라 미리보기** + 포즈 시뮬레이션 데이터 전송 (WebSocket)
+- 서버로부터 "정확", "틀림" 피드백 수신 후 카운트 및 애니메이션 표시
+- 운동별 카운트 기록
+
+### 📊 운동 기록 관리
+- 날짜별 기록 저장 (SharedPreferences / DB 확장 가능)
+- 운동 이력 화면에서:
+    - **날짜별 필터** (오늘, 주간, 월간)
+    - **운동 종류별 색상 구분**
+    - **정렬 토글** (최신순 / 오래된순)
+    - **히트맵 캘린더**
+    - **날짜 선택 시 바 차트**로 운동별 횟수 확인 가능
+- 기록이 없을 경우 `"아직 기록이 없어요"` 빈 상태 UI 표시
+
+### 🔔 알림
+- 운동을 하지 않은 경우 알림(팝업 or 푸시) 제공
+- "오늘 운동 안 했어요!" 팝업 → **알림 끄기** / **닫기**
+- `SharedPreferences`에 알림 상태 저장 (`notification_enabled`)
+- 앱이 켜져 있을 때 → 팝업 다이얼로그
+- 앱이 꺼져 있을 때 → 푸시 알림 (flutter_local_notifications)
+
+### ⚙️ 사용자 설정
+- 홈 화면 우측 상단 설정 버튼 → **SettingsScreen**
+- 알림 ON/OFF 토글 가능
+- 알림 재활성화, 언어 설정(추후), 단위 설정(kg/cm) 지원 예정
+
+### 👤 사용자 정보
+- 키, 몸무게, 나이 입력
+- 수정 버튼 클릭 시 → 키/몸무게 입력 다이얼로그 표시
+- 입력 후 홈 화면 카드에 실시간 반영
+
+---
+
+## 🛠️ 기술 스택
+
+- **언어/프레임워크**: Flutter (Dart)
+- **상태 관리**: StatefulWidget, setState (추후 Riverpod/Bloc로 확장 가능)
+- **로컬 저장소**: SharedPreferences
+- **네트워킹**: WebSocket (실시간 서버 통신)
+- **캘린더/차트**: `table_calendar`, `fl_chart`
+- **알림**: `flutter_local_notifications`
+- **로그인**: Kakao SDK (`kakao_flutter_sdk_user`)
+- **UI/UX**: Figma 시안 기반, Material3 적용
+
+---
+## 🧪 QA 체크리스트
+
+로그인 실패 → "로그인 실패, 다시 시도해주세요"
+운동 기록 없음 상태 → "아직 기록이 없어요"
+서버 피드백 없음 → "서버 연결 상태를 확인해주세요"
+알림 끔 상태 → 푸시/팝업 노출되지 않음
+입력값 유효성 검사:
+키/몸무게 null, 0 이하 → Snackbar "올바른 값을 입력하세요"
+
+
+---
+
+##🧑‍🤝‍🧑 베타 테스트
+
+APK 배포: Google Drive / Notion
+피드백 수집: Google Form (버그/사용성/디자인)
+주요 개선 사항:
+버튼 터치 영역 확대
+빈 화면에 안내 문구 추가
+로그인 실패 처리 개선
+폰트 크기 접근성 대응
+
+---
+
+##📹 시연 영상
+
+영상 시나리오:
+
+앱 실행 → 온보딩 →
+홈 → 운동 시작 → 운동 선택
+라이브 피드백 (카운트 + 메시지)
+운동 종료 → 기록 저장
+이력 화면 (히트맵/바 차트)
+설정 → 알림 토글
+
+
+---
+
+##📖 사용자 가이드
+1. 앱 설치
+   flutter build apk → app-release.apk 파일 설치
+   카메라/알림 권한 허용
+
+2. 로그인
+   카카오톡이 설치되어 있으면 자동 연결
+   설치되어 있지 않으면 카카오 계정 로그인
+
+3. 운동 시작
+   홈 → "운동 시작" 버튼 → 원하는 운동 선택
+   카메라 켜짐 + 서버와 연결
+
+4. 운동 중
+   카운트 애니메이션 확인
+   서버에서 피드백 문구 수신
+   잘못된 자세 시 "팔꿈치를 더 굽혀주세요" 같은 메시지 표시
+
+5. 운동 종료
+   "운동 종료" 버튼 → 기록 저장
+   SharedPreferences에 날짜별 기록 업데이트
+
+6. 기록 확인
+   홈 → 우측 상단 "분석" 버튼 → 운동 이력 화면
+   캘린더 Heatmap + 선택 날짜 바 차트 확인 가능
+
+7. 알림
+   설정에서 알림 켜기/끄기
+   운동 안 한 날 → 1분 간격(테스트용) 알림
+
+---
+
+##❓ FAQ
+
+Q. 카메라가 켜지지 않아요
+A. 앱 권한 설정에서 카메라 허용을 확인해주세요.
+
+Q. 알림이 오지 않아요
+A. 설정에서 알림 토글이 켜져 있는지 확인해주세요.
+또한 Android 13 이상에서는 시스템 알림 권한도 필요합니다.
+
+Q. 로그인 실패 메시지가 떠요
+A. 네트워크 연결 상태를 확인하고, 카카오 SDK 앱키를 확인해주세요.
+
+Q. 기록이 사라졌어요
+A. 현재는 로컬 저장(SharedPreferences)만 지원합니다.
+앱 삭제 시 기록이 초기화됩니다. 추후 DB 연동 예정입니다.
+
+
+
+
+## 📂 프로젝트 구조
+
+```bash
+
+프론트
+백
+
+
+

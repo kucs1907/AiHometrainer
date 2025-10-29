@@ -1,149 +1,184 @@
-# routers/session_stream.py
+# backend/routers/session_stream.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from utils.model_loader import load_model, predict
-from services.rep_counter import RepCounter
-from utils.db import SessionLocal, init_db
-from models.exercise import ExerciseSession, SessionEvent
-import datetime as dt
-import json
-
-# ★ 추가: 상태 확인을 위해 import
 from starlette.websockets import WebSocketState
+from typing import Dict, Any, List, Optional
+from statistics import mean
+import traceback
+from datetime import datetime, timezone, timedelta
+
+from database.connection import SessionLocal
+from models.exercise import ExerciseSession
+from utils.model_loader import load_model, predict
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 _model_bundle = load_model()
 
-@router.on_event("startup")
-def _startup():
-    init_db()
+KST = timezone(timedelta(hours=9))
+def now_kst() -> datetime:
+    return datetime.now(tz=KST)
 
-# ★ 추가: 안전 전송 헬퍼
-async def _safe_send_json(websocket: WebSocket, payload: dict):
-    if websocket.client_state == WebSocketState.CONNECTED:
-        await websocket.send_json(payload)
+async def _safe_send(ws: WebSocket, payload: Dict[str, Any]):
+    if ws.client_state == WebSocketState.CONNECTED:
+        await ws.send_json(payload)
+
+class SessionState:
+    def __init__(self, user_id: str, exercise: str, session_id: int):
+        self.user_id = str(user_id)
+        self.exercise = exercise
+        self.session_id = session_id
+        self.probas: List[float] = []
+        self.finished: bool = False     # 중복 finish 방지
+
+    def add_proba(self, p: float):
+        self.probas.append(float(p))
+
+    def correct_ratio(self) -> float:
+        return float(mean(self.probas)) if self.probas else 0.0
 
 @router.websocket("/ws")
-async def ws_session(websocket: WebSocket):
-    await websocket.accept()
+async def sessions_ws(ws: WebSocket):
+    await ws.accept()
     db = SessionLocal()
-    rep = None
-    session_row = None
 
-    # ★ 권장: exercise를 미리 함수 스코프에서 초기화
-    exercise = "unknown"
-    user_id = "unknown"
+    state: Optional[SessionState] = None
+    last_client_reps: int = 0
 
     try:
+        # 클라가 바로 start를 보내지 못하는 상황 대비(선택)
+        await _safe_send(ws, {"type": "hello", "note": "send start -> frame -> finish"})
+
         while True:
-            raw = await websocket.receive_text()
-            try:
-                msg = json.loads(raw)
-            except Exception:
-                await _safe_send_json(websocket, {"type": "error", "message": "invalid json"})
-                continue
+            msg = await ws.receive_json()
+            t = msg.get("type")
 
-            mtype = msg.get("type")
-            if mtype == "start":
-                user_id = msg.get("user_id", "unknown")
-                exercise = msg.get("exercise", "unknown")
+            if t == "start":
+                user_id = str(msg.get("user_id") or "1")
+                exercise = str(msg.get("exercise") or "squat")
 
-                rep = RepCounter(exercise)
-                session_row = ExerciseSession(
-                    user_id=user_id,
+                # 1) 시작 시점에 DB row 생성 (session_id 확보)
+                row = ExerciseSession(
+                    user_id=user_id,           # 모델이 str/Int 혼용이면 스키마에 맞춰 형변환
                     exercise=exercise,
+                    start_time=now_kst(),      # ▶ 칼럼명이 start_time인 모델 기준
                     reps=0,
                     correct_ratio=0.0,
-                    start_time=dt.datetime.utcnow(),
-                    end_time=dt.datetime.utcnow(),
                 )
-                db.add(session_row)
+                db.add(row)
                 db.commit()
-                db.refresh(session_row)
-                await _safe_send_json(websocket, {"type": "started", "session_id": session_row.id})
+                db.refresh(row)
 
-            elif mtype == "frame":
-                if rep is None:
-                    await _safe_send_json(websocket, {"type": "error", "message": "session not started"})
+                state = SessionState(user_id, exercise, row.id)
+
+                # started + session_id 알림
+                await _safe_send(ws, {"type": "started", "session_id": row.id})
+
+            elif t == "frame":
+                if state is None:
+                    continue
+                keypoints = msg.get("keypoints") or []
+
+                # [{x,y,score}×17] → 51차원 벡터
+                if keypoints and isinstance(keypoints[0], dict):
+                    flat: List[float] = []
+                    for p in keypoints:
+                        flat.extend([
+                            float(p.get("x", 0.0)),
+                            float(p.get("y", 0.0)),
+                            float(p.get("score", 0.0)),
+                        ])
+                    features = flat
+                else:
+                    features = keypoints
+
+                res = predict(_model_bundle, features, exercise=state.exercise) or {}
+                label = str(res.get("label", "unknown"))
+                proba = float(res.get("proba", 0.0))
+                state.add_proba(proba)
+
+                # 중간 inferences (서버 카운트는 사용하지 않음)
+                await _safe_send(ws, {
+                    "type": "inference",
+                    "label": label,
+                    "proba": proba,
+                })
+
+            elif t == "finish":
+                if state is None:
+                    await _safe_send(ws, {"type": "error", "message": "no session"})
                     continue
 
-                kps = msg.get("keypoints", [])
-                if not isinstance(kps, list) or len(kps) < 17:
-                    await _safe_send_json(websocket, {"type": "error", "message": "need 17 keypoints"})
+                # 중복 finish 방지
+                if state.finished:
+                    # 멱등 응답: 현재 DB 값을 읽어 회신
+                    row = db.get(ExerciseSession, state.session_id)
+                    await _safe_send(ws, {
+                        "type": "finished",
+                        "session_id": state.session_id,
+                        "reps": int(row.reps) if row else last_client_reps,
+                        "correct_ratio": float(row.correct_ratio or 0.0) if row else 0.0,
+                    })
                     continue
+                state.finished = True
 
-                keypoints = [
-                    [float(kp.get("x", 0)), float(kp.get("y", 0)), float(kp.get("score", 1.0))]
-                    for kp in kps[:17]
-                ]
-                result = predict(_model_bundle, keypoints, exercise=exercise)
+                # 클라 reps 폴백 저장
+                client_reps = msg.get("client_reps")
+                last_client_reps = int(client_reps) if client_reps is not None else 0
 
-                # ★ 여기만 핵심 변경: proba를 함께 넘겨 쿨다운 수용 + 평균 proba 반영
-                proba = float(result.get("proba", 0.0) or 0.0)
-                count = rep.step(result["label"], proba)
-
-                if session_row:
-                    ev = SessionEvent(
-                        session_id=session_row.id,
-                        label=result["label"],
-                        proba=proba,
-                        raw=json.dumps(result),
-                    )
-                    db.add(ev)
+                # 2) 기존 row 업데이트 (UPDATE)
+                row = db.get(ExerciseSession, state.session_id)
+                if row is not None:
+                    row.reps = last_client_reps
+                    row.correct_ratio = state.correct_ratio()
+                    row.end_time = now_kst()   # ▶ 칼럼명이 end_time인 모델 기준
                     db.commit()
+                    db.refresh(row)
 
-                await _safe_send_json(
-                    websocket,
-                    {
-                        "type": "inference",
-                        "label": result["label"],
-                        "proba": proba,
-                        "count": count,  # ← 서버 쿨다운 통과해 '수용된' 값만 방송
-                        "proba_vector": result.get("proba_vector"),
-                    },
-                )
-
-            elif mtype == "finish":
-                if session_row and rep:
-                    session_row.reps = rep.count
-                    session_row.correct_ratio = rep.correct_ratio
-                    session_row.end_time = dt.datetime.utcnow()
-                    db.add(session_row)
-                    db.commit()
-
-                    await _safe_send_json(
-                        websocket,
-                        {
-                            "type": "finished",
-                            "session_id": session_row.id,
-                            "reps": rep.count,
-                            "correct_ratio": rep.correct_ratio,
-                        },
+                    await _safe_send(ws, {
+                        "type": "finished",
+                        "session_id": row.id,
+                        "reps": int(row.reps),
+                        "correct_ratio": float(row.correct_ratio or 0.0),
+                    })
+                else:
+                    # 혹시 start INSERT가 실패했던 극단적 예외 대비: 새로 저장 (최소 보존)
+                    row = ExerciseSession(
+                        user_id=state.user_id,
+                        exercise=state.exercise,
+                        start_time=now_kst(),
+                        end_time=now_kst(),
+                        reps=last_client_reps,
+                        correct_ratio=state.correct_ratio(),
                     )
-
-                # ★ 서버가 닫는 전략: 여기서 한 번만 close 하고 종료
-                if websocket.client_state == WebSocketState.CONNECTED:
-                    try:
-                        await websocket.close(code=1000)
-                    except RuntimeError:
-                        pass
-                return  # break 말고 return으로 즉시 함수 종료
+                    db.add(row)
+                    db.commit()
+                    db.refresh(row)
+                    await _safe_send(ws, {
+                        "type": "finished",
+                        "session_id": row.id,
+                        "reps": int(row.reps),
+                        "correct_ratio": float(row.correct_ratio or 0.0),
+                    })
 
             else:
-                await _safe_send_json(websocket, {"type": "error", "message": "unknown message type"})
+                await _safe_send(ws, {"type": "error", "message": f"unknown type: {t}"})
 
     except WebSocketDisconnect:
-        # 클라이언트가 먼저 끊은 경우
-        pass
-
+        # 안전망: finish 미수신 상태에서 끊기면, 최소한 end_time만 찍어둠
+        try:
+            if state and not state.finished:
+                row = db.get(ExerciseSession, state.session_id)
+                if row and row.end_time is None:
+                    row.end_time = now_kst()
+                    db.commit()
+        except Exception:
+            traceback.print_exc()
     except Exception as e:
-        # 에러를 알릴 때도 연결 상태일 때만
-        await _safe_send_json(websocket, {"type": "error", "message": str(e)})
-
+        traceback.print_exc()
+        await _safe_send(ws, {"type": "error", "message": str(e)})
     finally:
         db.close()
-        # ★ 이미 닫혔으면 다시 닫지 않음
-        if websocket.client_state == WebSocketState.CONNECTED:
+        if ws.client_state == WebSocketState.CONNECTED:
             try:
-                await websocket.close(code=1000)
+                await ws.close(code=1000)
             except RuntimeError:
                 pass

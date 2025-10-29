@@ -1,20 +1,12 @@
-cd C:\Users\jinyh\Desktop\merged71\backend
+cd C:\Users\파일경로\backend
 .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-
-파워쉘에서
-cd "C:\Users\jinyh\Desktop\capstone\backend"OneDrive\
-$Env:FIREBASE_CREDENTIALS = "C:\Users\jinyh\OneDrive\Desktop\capstone\backend\credentials\serviceAccountKey.json"
-uvicorn main:app --reload
-
-
 main, exercise_service,  live_feedback_screen
-cd C:\Users\jinyh\Desktop\merged71\frontend
+cd C:\Users\파일\frontend
+flutter pub get
+dart run flutter_launcher_icons
 flutter clean
-flutter pub get 
-flutter run
-flutter run -d chrome --web-port=8080
-flutter run -d R3CW50GV55Y
+flutter run -d 본인 디바이스

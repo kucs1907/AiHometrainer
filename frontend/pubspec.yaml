@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.10.5+9
+  flutter_tts: ^3.8.0  
   fl_chart: ^0.64.0
   #charts_flutter: ^0.12.0
   intl: ^0.18.1
@@ -42,6 +43,8 @@ dependencies:
   firebase_messaging: ^15.0.0
 
   http: ^0.13.0
+  wakelock_plus: ^1.2.0
+
 
   google_mlkit_pose_detection: 0.14.0
   google_mlkit_commons: 0.11.0
@@ -66,6 +69,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -118,3 +122,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/dumbbell.png"

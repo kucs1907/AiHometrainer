@@ -10,27 +10,27 @@ class OnboardingScreen extends StatelessWidget {
   Future<void> _handleKakaoLogin(BuildContext context) async {
     try {
       // // ===== DEBUG-ONLY: 강제 재인증(웹 계정 로그인 + 아이디/비번 입력) + 타임아웃/로그 — START =====
-      if (kDebugMode) {
-        try {
-          await UserApi.instance.logout(); // 기존 토큰 정리(선택)
-        } catch (_) {}
+      // if (kDebugMode) {
+      //   try {
+      //     await UserApi.instance.logout(); // 기존 토큰 정리(선택)
+      //   } catch (_) {}
 
-        debugPrint('[Kakao] Reauth start: loginWithKakaoAccount(Prompt.login)');
+      //   debugPrint('[Kakao] Reauth start: loginWithKakaoAccount(Prompt.login)');
 
-        // 콜백이 안 오면 20초 후 타임아웃 → 원인 파악에 도움
-        final token = await UserApi.instance
-            .loginWithKakaoAccount(prompts: [Prompt.login])
-            .timeout(const Duration(seconds: 20));
+      //   // 콜백이 안 오면 20초 후 타임아웃 → 원인 파악에 도움
+      //   final token = await UserApi.instance
+      //       .loginWithKakaoAccount(prompts: [Prompt.login])
+      //       .timeout(const Duration(seconds: 20));
 
-        debugPrint('[Kakao] token received: ${token.accessToken.substring(0, 8)}...');
+      //   debugPrint('[Kakao] token received: ${token.accessToken.substring(0, 8)}...');
 
-        await UserApi.instance.accessTokenInfo();
+      //   await UserApi.instance.accessTokenInfo();
 
-        if (!context.mounted) return;
-        debugPrint('[Kakao] navigate -> /home');
-        Navigator.pushReplacementNamed(context, '/home');
-        return; // 디버그 경로 종료
-      }
+      //   if (!context.mounted) return;
+      //   debugPrint('[Kakao] navigate -> /home');
+      //   Navigator.pushReplacementNamed(context, '/home');
+      //   return; // 디버그 경로 종료
+      // }
       // // ===== DEBUG-ONLY: 강제 재인증(웹 계정 로그인 + 아이디/비번 입력) + 타임아웃/로그 — END =====
 
       // 릴리즈/일반 경로: 카카오톡 설치 시 톡 로그인, 아니면 계정 로그인
@@ -74,33 +74,33 @@ class OnboardingScreen extends StatelessWidget {
 
     return Scaffold(
       // ===== DEBUG-ONLY: Kakao test logout (쉽게 제거 가능) — START =====
-      appBar: AppBar(
-        title: const Text('AI Hometrainer'),
-        actions: [
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: '테스트 로그아웃',
-              onPressed: () async {
-                try {
-                  await UserApi.instance.logout(); // 토큰만 삭제
-                  // 더 강하게 초기화하려면: await UserApi.instance.unlink(); // 앱 연결 해제(다음 로그인 시 재동의)
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('테스트용 로그아웃 완료')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('로그아웃 실패: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: const Text('AI Hometrainer'),
+      //   actions: [
+      //     if (kDebugMode)
+      //       IconButton(
+      //         icon: const Icon(Icons.logout),
+      //         tooltip: '테스트 로그아웃',
+      //         onPressed: () async {
+      //           try {
+      //             await UserApi.instance.logout(); // 토큰만 삭제
+      //             // 더 강하게 초기화하려면: await UserApi.instance.unlink(); // 앱 연결 해제(다음 로그인 시 재동의)
+      //             if (context.mounted) {
+      //               ScaffoldMessenger.of(context).showSnackBar(
+      //                 const SnackBar(content: Text('테스트용 로그아웃 완료')),
+      //               );
+      //             }
+      //           } catch (e) {
+      //             if (context.mounted) {
+      //               ScaffoldMessenger.of(context).showSnackBar(
+      //                 SnackBar(content: Text('로그아웃 실패: $e')),
+      //               );
+      //             }
+      //           }
+      //         },
+      //       ),
+      //   ],
+      // ),
       // ===== DEBUG-ONLY: Kakao test logout (쉽게 제거 가능) — END =====
 
       backgroundColor: Colors.white,

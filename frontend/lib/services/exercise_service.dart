@@ -1,27 +1,38 @@
-// lib/services/exercise_service.dart
+// frontend/lib/services/exercise_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/exercise_type.dart';
-import '../models/exercise_log.dart';
+import '../config/env.dart';
+import '../models/exercise_session.dart';
 
-const _baseUrl = 'http://192.168.219.105:8000';  // 실제 서버 주소/포트로 변경
+const _baseUrl = Env.restBase; // 한 곳에서 관리
 
-Future<List<ExerciseType>> fetchExerciseTypes() async {
-  final res = await http.get(Uri.parse('$_baseUrl/exercise/type'));
-  if (res.statusCode == 200) {
-    final List list = json.decode(res.body);
-    return list.map((e) => ExerciseType.fromJson(e)).toList();
+Future<List<ExerciseSession>> fetchExerciseHistory(int userId) async {
+  final url = Uri.parse('$_baseUrl/exercise/history?user_id=$userId');
+  final res = await http.get(url);
+
+  if (res.statusCode != 200) {
+    throw Exception('운동 기록 로드 실패: ${res.statusCode} ${res.body}');
   }
-  throw Exception('운동 종류 로드 실패: ${res.statusCode}');
-}
 
-Future<List<ExerciseLog>> fetchExerciseHistory(int userId) async {
-  final res = await http.get(
-    Uri.parse('$_baseUrl/exercise/history?user_id=$userId')
-  );
-  if (res.statusCode == 200) {
-    final List list = json.decode(res.body);
-    return list.map((e) => ExerciseLog.fromJson(e)).toList();
+  final decoded = json.decode(res.body);
+  if (decoded is! List) {
+    throw Exception('예상과 다른 JSON 형식: ${res.body}');
   }
-  throw Exception('운동 기록 로드 실패: ${res.statusCode}');
+
+  final out = <ExerciseSession>[];
+  for (final item in decoded) {
+    try {
+      if (item is Map<String, dynamic>) {
+        out.add(ExerciseSession.fromJson(item));
+      } else {
+        // ignore: avoid_print
+        print('⚠️ unexpected item type: $item');
+      }
+    } catch (err) {
+      // 문제되는 아이템은 건너뛰고 로그만 남김
+      // ignore: avoid_print
+      print('⚠️ bad item skipped: $item\n$err');
+    }
+  }
+  return out;
 }

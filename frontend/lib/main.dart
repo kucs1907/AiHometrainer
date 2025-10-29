@@ -4,8 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
-// FCM + 설정 API 연동
 import 'services/push_service.dart';
+
+import 'config/env.dart';
 
 // Screens
 import 'screens/onboarding_screen.dart';
@@ -14,37 +15,39 @@ import 'screens/select_exercise.dart';
 import 'screens/exercisehistory_screen.dart';
 import 'screens/live_feedback_screen.dart';
 import 'screens/settings.dart';
+import 'screens/session_result_screen.dart';
 
-/// 백그라운드 FCM 핸들러 (앱이 종료/백그라운드일 때 수신)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  // 필요 시 로깅/처리
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1) Firebase 초기화
   await Firebase.initializeApp();
-
-  // 2) FCM 백그라운드 메시지 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 3) Kakao SDK 초기화
   KakaoSdk.init(nativeAppKey: '26a7ded3a7a8401698e45b4688ea24c7');
 
-  // 4) 푸시 초기화 (토큰 획득 + 포그라운드 수신 리스너)
   await PushService.init();
-
-  // 5) 서버/유저 설정
-  PushService.configureServer("http://192.168.219.105:8000");
-  PushService.configureUser("1"); // TODO: 로그인된 실제 사용자 ID로 교체
+  PushService.configureServer(Env.restBase);
+  PushService.configureUser("1"); // TODO: 로그인 사용자 ID로 교체
 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  // 안전 파싱 유틸
+  Object? _routeArg(BuildContext context) =>
+      ModalRoute.of(context)?.settings.arguments;
+
+  int _parseUserId(Object? arg, {int fallback = 0}) {
+    if (arg is int) return arg;
+    if (arg is String) return int.tryParse(arg) ?? fallback;
+    return fallback;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,16 +63,18 @@ class MyApp extends StatelessWidget {
         '/': (context) => const OnboardingScreen(),
         '/home': (context) => const HomeScreen(),
         '/select_exercise': (context) => const SelectExerciseScreen(),
+        '/session_result': (context) => const SessionResultScreen(),
 
-        // '/history': (context) => const ExerciseHistoryScreen(userId: 1), // 테스트용
+        // ✅ 안전 파싱으로 교체
         '/history': (context) {
-          final userId = ModalRoute.of(context)!.settings.arguments as int;
+          final arg = _routeArg(context);
+          final userId = _parseUserId(arg, fallback: 1); // 기본값 1
           return ExerciseHistoryScreen(userId: userId);
         },
 
         // ✅ arguments → List<String>로 안전 변환 후 주입
         '/live_feedback': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments;
+          final args = ModalRoute.of(context)?.settings.arguments;
           if (args == null) {
             return const _MissingArgsScreen(
               routeName: '/live_feedback',
@@ -77,7 +82,6 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // 허용: List<String> 또는 List<dynamic> (문자열로 변환)
           late final List<String> selectedExercises;
           if (args is List<String>) {
             selectedExercises = args;
@@ -106,7 +110,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// 라우트 인자 누락 안내
 class _MissingArgsScreen extends StatelessWidget {
   final String routeName;
   final String expected;
@@ -121,7 +124,6 @@ class _MissingArgsScreen extends StatelessWidget {
   }
 }
 
-/// 라우트 인자 타입 불일치 안내
 class _BadArgsScreen extends StatelessWidget {
   final String routeName;
   final String expected;

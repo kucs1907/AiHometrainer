@@ -14,7 +14,10 @@
 
     <application
         android:label="aihometrainer"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="28">
 
         <!-- FCM 기본 알림 설정 -->
         <meta-data

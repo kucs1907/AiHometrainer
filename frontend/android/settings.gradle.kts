@@ -1,3 +1,4 @@
+// android/settings.gradle
 pluginManagement {
     val flutterSdkPath = run {
         val properties = java.util.Properties()
@@ -19,8 +20,10 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.3.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    // ⬇⬇ 여기 두 줄만 버전 올립니다
+    id("com.android.application") version "8.5.2" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.0" apply false
+    // 구글 서비스는 그대로
     id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
